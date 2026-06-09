@@ -288,7 +288,12 @@ const createMarkerElement = (type: MapMarker['type'], label?: string): HTMLEleme
 // (trimmed) polyline, mirroring the reference design.
 const createEtaBubble = (eta: number): HTMLElement => {
   const el = document.createElement('div');
-  el.style.cssText = 'position:relative;';
+  // NOTE: do NOT set position:relative here. MapLibre relies on its own
+  // .maplibregl-marker { position:absolute } rule so the element shrinks to its
+  // content width. Overriding it to relative makes the wrapper a full-width
+  // block, which throws off the anchor:'bottom' (-50%) horizontal offset and
+  // pushes the bubble to the left edge of the map.
+  el.style.width = 'fit-content';
   el.innerHTML = `
     <div class="marker-animate-in" style="
       width: 56px;
