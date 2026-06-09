@@ -556,13 +556,28 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
       etaBubbleRef.current = null;
     }
 
-    if (pickupEta === undefined || !encodedPolyline) return;
+    if (pickupEta === undefined) return;
 
-    // Place the bubble at the FIRST point of the polyline (pickup end).
+    // Anchor the bubble to the actual PICKUP marker so its position is
+    // deterministic regardless of which end the backend encoded the polyline
+    // from. Fall back to the first polyline vertex only if no pickup marker.
     try {
-      const decoded = polyline.decode(encodedPolyline);
-      if (decoded.length === 0) return;
-      const [lat, lng] = decoded[0];
+      const pickupMarker = markers.find(m => m.type === 'pickup');
+      let lat: number | undefined;
+      let lng: number | undefined;
+
+      if (pickupMarker) {
+        lat = pickupMarker.lat;
+        lng = pickupMarker.lng;
+      } else if (encodedPolyline) {
+        const decoded = polyline.decode(encodedPolyline);
+        if (decoded.length > 0) {
+          [lat, lng] = decoded[0];
+        }
+      }
+
+      if (lat === undefined || lng === undefined) return;
+
       const el = createEtaBubble(pickupEta);
       etaBubbleRef.current = new maplibregl.Marker({ element: el, anchor: 'bottom' })
         .setLngLat([lng, lat])
@@ -570,7 +585,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
     } catch (e) {
       console.error('ETA bubble placement error', e);
     }
-  }, [pickupEta, encodedPolyline, isMapLoaded]);
+  }, [pickupEta, encodedPolyline, markers, isMapLoaded]);
 
   // Update arrival card
   useEffect(() => {
@@ -582,13 +597,28 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
       arrivalCardRef.current = null;
     }
 
-    if (!arrivalTime || !encodedPolyline) return;
+    if (!arrivalTime) return;
 
-    // Place the card at the LAST point of the polyline (destination end).
+    // Anchor the arrival card to the actual DROPOFF marker so it stays at the
+    // destination regardless of polyline vertex order. Fall back to the last
+    // polyline vertex only if no dropoff marker is present.
     try {
-      const decoded = polyline.decode(encodedPolyline);
-      if (decoded.length === 0) return;
-      const [lat, lng] = decoded[decoded.length - 1];
+      const dropoffMarker = markers.find(m => m.type === 'dropoff');
+      let lat: number | undefined;
+      let lng: number | undefined;
+
+      if (dropoffMarker) {
+        lat = dropoffMarker.lat;
+        lng = dropoffMarker.lng;
+      } else if (encodedPolyline) {
+        const decoded = polyline.decode(encodedPolyline);
+        if (decoded.length > 0) {
+          [lat, lng] = decoded[decoded.length - 1];
+        }
+      }
+
+      if (lat === undefined || lng === undefined) return;
+
       const el = createArrivalCard(arrivalTime);
       arrivalCardRef.current = new maplibregl.Marker({ element: el, anchor: 'bottom' })
         .setLngLat([lng, lat])
@@ -596,7 +626,7 @@ export const MapLibreMap: React.FC<MapLibreMapProps> = ({
     } catch (e) {
       console.error('Arrival card placement error', e);
     }
-  }, [arrivalTime, encodedPolyline, isMapLoaded]);
+  }, [arrivalTime, encodedPolyline, markers, isMapLoaded]);
 
   // Add store marker
   useEffect(() => {
