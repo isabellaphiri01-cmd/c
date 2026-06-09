@@ -153,6 +153,31 @@ export const DriverComing: React.FC<DriverComingProps> = ({
       ? orderData.totalPrice 
     : (orderData.estimatedPrice || price);
   
+  // Run once on mount to seed the polyline/ETA from the initial orderData so the
+  // driver-to-pickup route draws immediately, before subscribeToOrder fires.
+  useEffect(() => {
+    const data = orderData as any;
+    if (!data) return;
+
+    const initialStatus = data.status || 'accepted';
+
+    if (initialStatus === 'accepted' || initialStatus === 'arriving') {
+      const etaMins = data.driverToPickupEtaMinutes;
+      if (typeof etaMins === 'number') {
+        setStatusText(`${etaMins} min${etaMins !== 1 ? 's' : ''}`);
+      }
+
+      const poly = data.driverToPickupPolyline;
+      if (poly) {
+        fullPolylineRef.current = poly;
+        setActiveTripPolyline(poly);
+        setTrimmedPolyline(poly);
+        setShowRouteOverlay(true);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally empty deps — runs only on mount
+
   // Listen to order status changes from unified orders collection
   useEffect(() => {
     if (!orderId) return;

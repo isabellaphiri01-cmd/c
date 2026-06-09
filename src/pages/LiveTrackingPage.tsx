@@ -153,6 +153,34 @@ export const LiveTrackingPage: React.FC = () => {
   const [etaMinutes, setEtaMinutes] = useState<number | null>(null);
   const gpsListenerRef = useRef<(() => void) | null>(null);
 
+  // Run once on mount to seed the polyline/ETA from initialOrderData so the
+  // route draws immediately, before the first Firestore snapshot fires.
+  useEffect(() => {
+    const data = initialOrderData as any;
+    if (!data) return;
+
+    const s = data.status;
+    const ds = data.driverStatus;
+
+    const isDriverAssignedPhase =
+      (s === 'driverassigned' || s === 'driver_assigned' || ds === 'assigned') &&
+      s !== 'at_store' && s !== 'picked_up' && s !== 'delivered' && s !== 'completed';
+
+    if (isDriverAssignedPhase) {
+      const etaMins = data.driverToPickupEtaMinutes;
+      if (typeof etaMins === 'number') setEtaMinutes(etaMins);
+
+      const poly = data.driverToPickupPolyline;
+      if (poly) {
+        fullPolylineRef.current = poly;
+        setActivePolyline(poly);
+        setTrimmedPolyline(poly);
+        setShowRouteOverlay(true);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally empty deps — runs only on mount
+
   // Listen to order document in real-time
   // IMPORTANT: Driver info MUST come from the order document's "driver" field
   // DO NOT query drivers collection directly
@@ -385,16 +413,10 @@ export const LiveTrackingPage: React.FC = () => {
       });
     }
     
-    // Destination marker
-    if (orderData.destinationLocation?.lat && orderData.destinationLocation?.lng) {
-      markers.push({
-        id: 'dropoff',
-        type: 'dropoff',
-        lat: orderData.destinationLocation.lat,
-        lng: orderData.destinationLocation.lng
-      });
-    }
-    
+    // NOTE: The destination/dropoff (diamond) marker is intentionally NOT added
+    // on the live tracking page. Only the backend-driven markers (store/pickup
+    // and stops) should ever appear here, regardless of order status.
+
     // Stop markers
     const stops = orderData.stops || [];
     stops.forEach((stop: any, index: number) => {
