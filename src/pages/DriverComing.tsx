@@ -170,7 +170,8 @@ export const DriverComing: React.FC<DriverComingProps> = ({
       // The backend injects driver snapshot into the order document after driver acceptance
       // Fields from Firestore driverSnapshot: firstName, profilePicture, rating, brand, model, color, plateNumber, carImage
       const driverFromOrder = (order as any).driverSnapshot || (order as any).driver;
-      if (driverFromOrder && !driverInfo) {
+      if (driverFromOrder && !driverInfoSetRef.current) {
+        driverInfoSetRef.current = true;
         const mappedDriver: DriverInfo = {
           id: driverFromOrder.uid || driverFromOrder.id || '',
           // Use firstName from Firestore
@@ -321,7 +322,7 @@ export const DriverComing: React.FC<DriverComingProps> = ({
         gpsListenerRef.current = null;
       }
     };
-  }, [orderId, hasShownArrivalAlert, driverInfo]);
+  }, [orderId, hasShownArrivalAlert]);
 
   const handleMessageDriver = async () => {
     setIsMessagePanelOpen(true);
